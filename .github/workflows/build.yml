@@ -1,4 +1,4 @@
-name: Build Unsigned IPA
+name: Build App
 on:
   push:
     branches: [ main, master ]
@@ -14,7 +14,7 @@ jobs:
         run: brew install xcodegen
       - name: Generate Xcode Project
         run: xcodegen generate
-      - name: Build App
+      - name: Build Device Version
         run: |
           xcodebuild -project Bytebeat.xcodeproj \
             -scheme Bytebeat \
@@ -24,16 +24,28 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             PROVISIONING_PROFILE_SPECIFIER="" \
-            CONFIGURATION_BUILD_DIR=build \
+            CONFIGURATION_BUILD_DIR=build-device \
             clean build
-      - name: Create Unsigned IPA
+          mkdir -p build-device/Payload
+          cp -r build-device/Bytebeat.app build-device/Payload/
+          cd build-device && zip -r Bytebeat-Device.ipa Payload && cd ..
+      - name: Build Simulator Version
         run: |
-          mkdir -p build/Payload
-          cp -r build/Bytebeat.app build/Payload/
-          cd build
-          zip -r Bytebeat.ipa Payload
-      - name: Upload IPA Artifact
+          xcodebuild -project Bytebeat.xcodeproj \
+            -scheme Bytebeat \
+            -configuration Release \
+            -sdk iphonesimulator \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            CONFIGURATION_BUILD_DIR=build-sim \
+            clean build
+          cd build-sim && zip -r Bytebeat-Simulator.zip Bytebeat.app && cd ..
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Bytebeat-Unsigned-IPA
-          path: build/Bytebeat.ipa
+          name: Bytebeat-Builds
+          path: |
+            build-device/Bytebeat-Device.ipa
+            build-sim/Bytebeat-Simulator.zip
