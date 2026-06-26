@@ -1,0 +1,39 @@
+name: Build Unsigned IPA
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode Project
+        run: xcodegen generate
+      - name: Build App
+        run: |
+          xcodebuild -project Bytebeat.xcodeproj \
+            -scheme Bytebeat \
+            -configuration Release \
+            -sdk iphoneos \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            CONFIGURATION_BUILD_DIR=build \
+            clean build
+      - name: Create Unsigned IPA
+        run: |
+          mkdir -p build/Payload
+          cp -r build/Bytebeat.app build/Payload/
+          cd build
+          zip -r Bytebeat.ipa Payload
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bytebeat-Unsigned-IPA
+          path: build/Bytebeat.ipa
